@@ -1,0 +1,7 @@
+{
+  "plc": {"host":"192.168.1.10","port":502},
+  "addresses": {"anglesX":840,"anglesY":856,"anglesZ":872 },
+  "poll_ms":200,
+  "backoff": {"base_s":0.5, "max_s":60},
+  "images": ["0.png","1.png","2.png","3.png","4.png","5.png","6.png","7.png"]
+}

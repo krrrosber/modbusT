@@ -1,0 +1,16 @@
+# Qt / CMake build
+build/
+CMakeLists.txt.user
+*.pro.user
+*.qmlc
+*.jsc
+*.o
+*.obj
+*.exe
+*.dll
+*.pdb
+
+# Qt Creator
+*.autosave
+*.qbs.user
+*.qbs.user.*
