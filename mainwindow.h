@@ -14,6 +14,10 @@ public:
     explicit MainWindow(QWidget *parent = nullptr);
     ~MainWindow();
 
+protected:
+    void resizeEvent(QResizeEvent *event) override;
+
+
 private:
     ModbusConnect *clientModbus;
     QLabel *angelXLabel;
@@ -21,6 +25,8 @@ private:
     QLabel *angelZLabel;
     QTimer *pollTimer;
     QStackedWidget *image;
+    QWidget *leftPanel;
+
 };
 
 #endif // MAINWINDOW_H
