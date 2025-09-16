@@ -4,6 +4,7 @@
 #include "modbusconnect.h"
 #include <QMainWindow>
 #include <QObject>
+#include <qmodbustcpclient.h>
 
 class MainWindow:public QMainWindow
 {
@@ -13,7 +14,11 @@ public:
     ~MainWindow();
 
 private:
-    ModbusConnect *client;
+    ModbusConnect *clientModbus;
+    QLabel *angelXLabel;
+    QLabel *angelYLabel;
+    QLabel *angelZLabel;
+    QTimer *pollTimer;
 };
 
 #endif // MAINWINDOW_H
