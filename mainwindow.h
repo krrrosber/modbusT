@@ -5,6 +5,7 @@
 #include <QMainWindow>
 #include <QObject>
 #include <qmodbustcpclient.h>
+#include <qstackedwidget.h>
 
 class MainWindow:public QMainWindow
 {
@@ -19,6 +20,7 @@ private:
     QLabel *angelYLabel;
     QLabel *angelZLabel;
     QTimer *pollTimer;
+    QStackedWidget *image;
 };
 
 #endif // MAINWINDOW_H

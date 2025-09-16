@@ -10,6 +10,30 @@ ModbusConnect::ModbusConnect(QObject *parent) :
 {
 }
 
+
+float regsToFloat(quint16 reg1, quint16 reg2,
+                                 bool swapWords, bool swapBytes)
+{
+    // меняем местами слова
+    quint16 hi = swapWords ? reg1 : reg2;
+    quint16 lo = swapWords ? reg2 : reg1;
+
+    // меняем байты внутри слов
+    auto swap16 = [](quint16 w) {
+        return quint16((w >> 8) | (w << 8));
+    };
+    if (swapBytes) {
+        hi = swap16(hi);
+        lo = swap16(lo);
+    }
+
+    quint32 raw = (quint32(hi) << 16) | lo;
+    float f;
+    memcpy(&f, &raw, sizeof(f));
+    return f;
+}
+
+
 void ModbusConnect::startConnect(){
     if(!modbusClient) return;
     modbusClient->setConnectionParameter(QModbusDevice::NetworkAddressParameter, Config::ipAddress);
@@ -28,204 +52,120 @@ bool ModbusConnect::isConnected() const {
     // читаем два регистра (они передаются как quint16)
     qDebug()<<du.value(idxHigh)<<" "<<du.value(idxLow);
 
-    uint16_t w1 = static_cast<uint16_t>(du.value(idxHigh));
-    uint16_t w2 = static_cast<uint16_t>(du.value(idxLow));
+    auto r0 = du.value(idxHigh);
+    auto r1 = du.value(idxLow);
 
-    // если нужно поменять байты внутри каждого регистра (A B -> B A)
+    float f1 = regsToFloat(r0, r1, false, false);
+    float f2 = regsToFloat(r0, r1, true,  false);
+    float f3 = regsToFloat(r0, r1, false, true);
+    float f4 = regsToFloat(r0, r1, true,  true);
+
+    qDebug() << "try (no swap):" << f1;
+    qDebug() << "try (swap words):" << f2;
+    qDebug() << "try (swap bytes):" << f3;
+    qDebug() << "try (both swaps):" << f4;
+
+
+    quint16 word1 = du.value(idxHigh);
+    quint16 word2 = du.value(idxLow);
+    qDebug() << "Raw registers:"
+             << QString("0x%1").arg(du.value(idxHigh), 4, 16, QLatin1Char('0'))
+             << QString("0x%1").arg(du.value(idxLow), 4, 16, QLatin1Char('0'));
+
+
+    // Меняем местами слова (если нужно)
+    quint16 hi = swapWords ? word1 : word2;
+    quint16 lo = swapWords ? word2 : word1;
+
+    // Меняем байты внутри слова (если нужно)
     if (swapBytes) {
-        auto swap16 = [](uint16_t x) -> uint16_t { return static_cast<uint16_t>((x << 8) | (x >> 8)); };
-        w1 = swap16(w1);
-        w2 = swap16(w2);
+        hi = (hi >> 8) | (hi << 8);
+        lo = (lo >> 8) | (lo << 8);
     }
 
-    // составляем 32-битное слово: по умолчанию w1 = старшее слово, w2 = младшее
-    uint32_t combined = 0;
-    if (swapWords) {
-        combined = (static_cast<uint32_t>(w2) << 16) | w1;
-    } else {
-        combined = (static_cast<uint32_t>(w1) << 16) | w2;
-    }
-
-    // безопасно копируем биты в float (избегаем UB с reinterpret_cast)
+    quint32 raw = (quint32(hi) << 16) | lo;
     float f;
-    std::memcpy(&f, &combined, sizeof(f));
+    memcpy(&f, &raw, sizeof(float));
     return f;
 }
 
- void ModbusConnect::readAngelX()
- {
-     qDebug() << "readAngelX() called";
+    void ModbusConnect::readRegister(){
+        {
+            qDebug() << "readAngels() called";
 
-     if (!modbusClient) {
-         qDebug() << "readAngelX: no modbus client";
-         return;
-     }
-
-     // если уже есть незавершённый запрос — пропускаем
-     if (pendingReadX && !pendingReadX->isFinished()) {
-         qDebug() << "readAngelY: pending request exists, skip";
-         return;
-     }
-
-     QModbusDataUnit read(QModbusDataUnit::HoldingRegisters, Config::angelX, 2);
-     QModbusReply *reply = modbusClient->sendReadRequest(read, /*unitId*/ 1);
-
-     if (!reply) {
-         qWarning() << "readAngelY: sendReadRequest returned nullptr";
-         return;
-     }
-
-     // сохраняем как pending для предотвращения дублей
-     pendingReadX = reply;
-
-     // если уже завершён (маловероятно), обработаем синхронно
-     if (reply->isFinished()) {
-         if (reply->error() == QModbusDevice::NoError) {
-             auto result = reply->result();
-             float v = registerToFloat(result, 0, 1, true, false);
-             qDebug() << "readAngelY: immediate result =" << v;
-             emit angelXReady(static_cast<double>(v));
-         } else {
-             qWarning() << "readAngelY immediate error:" << reply->errorString();
-         }
-         // очистка
-         pendingReadX = nullptr;
-         reply->deleteLater();
-         return;
-     }
-
-     // асинхронная обработка результата
-     connect(reply, &QModbusReply::finished, this, [this, reply]() {
-         if (reply->error() == QModbusDevice::NoError) {
-             auto result = reply->result();
-             float v = registerToFloat(result, 0, 1, true, false);
-             qDebug() << "readAngelX: got result =" << v;
-             emit angelXReady(static_cast<double>(v));
-         } else {
-             qWarning() << "readAngelY error:" << reply->errorString();
-         }
-         // очистка pending и освобождение reply — делаем это ТУТ (только тут)
-         if (reply == pendingReadX) pendingReadX = nullptr;
-         reply->deleteLater();
-     });
- }
-
-void ModbusConnect::readAngelY()
-{
-        qDebug() << "readAngelY() called";
-
-        if (!modbusClient) {
-            qDebug() << "readAngelY: no modbus client";
-            return;
-        }
-
-        // если уже есть незавершённый запрос — пропускаем
-        if (pendingReadY && !pendingReadY->isFinished()) {
-            qDebug() << "readAngelY: pending request exists, skip";
-            return;
-        }
-
-        QModbusDataUnit read(QModbusDataUnit::HoldingRegisters, Config::angelY, 2);
-        QModbusReply *reply = modbusClient->sendReadRequest(read, /*unitId*/ 1);
-
-        if (!reply) {
-            qWarning() << "readAngelY: sendReadRequest returned nullptr";
-            return;
-        }
-
-        // сохраняем как pending для предотвращения дублей
-        pendingReadY = reply;
-
-        // если уже завершён (маловероятно), обработаем синхронно
-        if (reply->isFinished()) {
-            if (reply->error() == QModbusDevice::NoError) {
-                auto result = reply->result();
-                float v = registerToFloat(result, 0, 1, true, false);
-                qDebug() << "readAngelY: immediate result =" << v;
-                emit angelYReady(static_cast<double>(v));
-            } else {
-                qWarning() << "readAngelY immediate error:" << reply->errorString();
+            if (!modbusClient) {
+                qDebug() << "readAngelY: no modbus client";
+                return;
             }
-            // очистка
-            pendingReadY = nullptr;
-            reply->deleteLater();
-            return;
-        }
 
-        // асинхронная обработка результата
-        connect(reply, &QModbusReply::finished, this, [this, reply]() {
-            if (reply->error() == QModbusDevice::NoError) {
-                auto result = reply->result();
-                float v = registerToFloat(result, 0, 1, true, false);
-                qDebug() << "readAngelY: got result =" << v;
-                emit angelYReady(static_cast<double>(v));
-            } else {
-                qWarning() << "readAngelY error:" << reply->errorString();
+            // если уже есть незавершённый запрос — пропускаем
+            if (pendingRead && !pendingRead->isFinished()) {
+                qDebug() << "readAngels: pending request exists, skip";
+                return;
             }
-            // очистка pending и освобождение reply — делаем это ТУТ (только тут)
-            if (reply == pendingReadY) pendingReadY = nullptr;
-            reply->deleteLater();
-        });
+
+            QModbusDataUnit read(QModbusDataUnit::HoldingRegisters, 347, 7);
+            QModbusReply *reply = modbusClient->sendReadRequest(read, /*unitId*/ 1);
+
+            if (!reply) {
+                qWarning() << "readAngels: sendReadRequest returned nullptr";
+                return;
+            }
+
+            // сохраняем как pending для предотвращения дублей
+            pendingRead = reply;
+
+            // если уже завершён (маловероятно), обработаем синхронно
+            if (reply->isFinished()) {
+                if (reply->error() == QModbusDevice::NoError) {
+                    auto result = reply->result();
+
+                    float v1 = registerToFloat(result, 1, 2, false, false);
+                    qDebug() << "readAngelX: immediate result =" << v1;
+                    emit angelXReady(static_cast<double>(v1));
+
+                    float v2 = registerToFloat(result, 3, 4, false, false);
+                    qDebug() << "readAngelY: immediate result =" << v2;
+                    emit angelYReady(static_cast<double>(v2));
+
+                    float v3 = registerToFloat(result, 5, 6, false, false);
+                    qDebug() << "readAngelZ: immediate result =" << v3;
+                    emit angelZReady(static_cast<double>(v3));
+                } else {
+                    qWarning() << "readAngelY immediate error:" << reply->errorString();
+                }
+                // очистка
+                pendingRead = nullptr;
+                reply->deleteLater();
+                return;
+            }
+
+            // асинхронная обработка результата
+            connect(reply, &QModbusReply::finished, this, [this, reply]() {
+                if (reply->error() == QModbusDevice::NoError) {
+                    auto result = reply->result();
+
+                    int im = result.value(0);
+                      qDebug() << "image number immediate result =" << im;
+                    emit imageChange(im);
+
+                    float v1 = registerToFloat(result, 1, 2, false, false);
+                    qDebug() << "readAngelX: immediate result =" << v1;
+                    emit angelXReady(static_cast<double>(v1));
+
+                    float v2 = registerToFloat(result, 3, 4, false, false);
+                    qDebug() << "readAngelY: immediate result =" << v2;
+                    emit angelYReady(static_cast<double>(v2));
+
+                    float v3 = registerToFloat(result, 5, 6, false, false);
+                    qDebug() << "readAngelZ: immediate result =" << v3;
+                    emit angelZReady(static_cast<double>(v3));
+                } else {
+                    qWarning() << "readAngelZ error:" << reply->errorString();
+                }
+                // очистка pending и освобождение reply — делаем это ТУТ (только тут)
+                if (reply == pendingRead) pendingRead = nullptr;
+                reply->deleteLater();
+            });
+        }
     }
-
-
-
-    void ModbusConnect::readAngelZ()
-    {
-        qDebug() << "readAngelY() called";
-
-        if (!modbusClient) {
-            qDebug() << "readAngelY: no modbus client";
-            return;
-        }
-
-        // если уже есть незавершённый запрос — пропускаем
-        if (pendingReadZ && !pendingReadZ->isFinished()) {
-            qDebug() << "readAngelY: pending request exists, skip";
-            return;
-        }
-
-        QModbusDataUnit read(QModbusDataUnit::HoldingRegisters, Config::angelZ, 2);
-        QModbusReply *reply = modbusClient->sendReadRequest(read, /*unitId*/ 1);
-
-        if (!reply) {
-            qWarning() << "readAngelY: sendReadRequest returned nullptr";
-            return;
-        }
-
-        // сохраняем как pending для предотвращения дублей
-        pendingReadZ = reply;
-
-        // если уже завершён (маловероятно), обработаем синхронно
-        if (reply->isFinished()) {
-            if (reply->error() == QModbusDevice::NoError) {
-                auto result = reply->result();
-                float v = registerToFloat(result, 0, 1, true, false);
-                qDebug() << "readAngelY: immediate result =" << v;
-                emit angelZReady(static_cast<double>(v));
-            } else {
-                qWarning() << "readAngelY immediate error:" << reply->errorString();
-            }
-            // очистка
-            pendingReadZ = nullptr;
-            reply->deleteLater();
-            return;
-        }
-
-        // асинхронная обработка результата
-        connect(reply, &QModbusReply::finished, this, [this, reply]() {
-            if (reply->error() == QModbusDevice::NoError) {
-                auto result = reply->result();
-                float v = registerToFloat(result, 0, 1, true, false);
-                qDebug() << "Z: got result =" << v;
-                emit angelZReady(static_cast<double>(v));
-            } else {
-                qWarning() << "readAngelZ error:" << reply->errorString();
-            }
-            // очистка pending и освобождение reply — делаем это ТУТ (только тут)
-            if (reply == pendingReadZ) pendingReadZ = nullptr;
-            reply->deleteLater();
-        });
-    }
-
-

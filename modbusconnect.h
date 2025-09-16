@@ -14,21 +14,19 @@ public:
 
     void startConnect();
     bool isConnected() const;
-    void readAngelX();
-    void readAngelY();
-    void readAngelZ();
+    void readRegister();
     static double registerToFloat(const QModbusDataUnit &d, int index1, int index2, bool swapWords, bool swapBytes);
 
 signals:
     void angelXReady(double value);
     void angelYReady(double value);
     void angelZReady(double value);
+    void imageChange(int i);
 
 private:
     QModbusTcpClient *modbusClient;
-    QModbusReply *pendingReadX = nullptr;
-    QModbusReply *pendingReadY = nullptr;
-    QModbusReply *pendingReadZ = nullptr;
+    QModbusReply *pendingRead = nullptr;
+
 };
 
 #endif // MODBUSCONNECT_H

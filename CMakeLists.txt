@@ -20,6 +20,9 @@ add_executable(qt_modbus_example
 
 
 )
+# копирование папки image в директорию сборки
+file(COPY ${CMAKE_SOURCE_DIR}/image DESTINATION ${CMAKE_BINARY_DIR})
+
 target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_SOURCE_DIR}/nlohmann)
 target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_SOURCE_DIR}/image)
 target_link_libraries(qt_modbus_example
