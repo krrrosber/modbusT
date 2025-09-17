@@ -26,6 +26,8 @@ private:
     QTimer *pollTimer;
     QStackedWidget *image;
     QWidget *leftPanel;
+    QVector<QPixmap> origPixmaps;
+    void updateImages();
 
 };
 
