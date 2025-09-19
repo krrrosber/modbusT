@@ -22,7 +22,7 @@ MainWindow::MainWindow(QWidget *parent)
     image(nullptr)
 {
     // стартовый  размер окна
-    this->resize(1280, 720);
+    this->resize(1920, 1080);
 
     // Splitter как центральный виджет
     QSplitter *splitter = new QSplitter(Qt::Horizontal, this);
@@ -138,20 +138,17 @@ MainWindow::MainWindow(QWidget *parent)
 // ------------------ масштабирование картинок из кеша ------------------
 void MainWindow::updateImages()
 {
-    for (int i = 0; i < image->count(); ++i) {
+    QSize target = image->size();   // всегда берем размер всего QStackedWidget
+    if (target.isEmpty()) return;
 
+    for (int i = 0; i < image->count(); ++i) {
         QWidget *page = qobject_cast<QWidget*>(image->widget(i));
         if (!page) continue;
 
-        // ищем QLabel на странице
         QLabel* lbl = page->findChild<QLabel*>();
         if (!lbl) continue;
 
         if (i >= 0 && i < origPixmaps.size() && !origPixmaps[i].isNull()) {
-            QSize target = lbl->size();                  // размер доступной области для картинки (учитывает отступы)
-            if (target.isEmpty()) target = image->size();
-            if (target.isEmpty()) continue;
-
             QPixmap scaled = origPixmaps[i].scaled(target, Qt::KeepAspectRatio, Qt::SmoothTransformation);
             lbl->setPixmap(scaled);
         } else {
@@ -159,6 +156,7 @@ void MainWindow::updateImages()
         }
     }
 }
+
 
 
 // ------------------ resizeEvent ------------------

@@ -16,9 +16,6 @@ add_executable(qt_modbus_example
     mainwindow.h mainwindow.cpp
     modbusconnect.h modbusconnect.cpp
     config.h config.cpp
-
-
-
 )
 # копирование папки image в директорию сборки
 file(COPY ${CMAKE_SOURCE_DIR}/image DESTINATION ${CMAKE_BINARY_DIR})
