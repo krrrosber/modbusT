@@ -3,6 +3,7 @@
 #include <QVector>
 #include <QPixmap>
 #include <QDebug>
+#include <qapplication.h>
 #include <qwidget.h>
 #include "mainwindow.h"
 #include <qgridlayout.h>
@@ -10,6 +11,9 @@
 #include <qstackedwidget.h>
 #include "config.h"
 #include "QSplitter"
+#include <QScreen>
+#include <QGuiApplication>
+
 
 // ------------------ Конструктор ------------------
 MainWindow::MainWindow(QWidget *parent)
@@ -23,6 +27,14 @@ MainWindow::MainWindow(QWidget *parent)
 {
     // стартовый  размер окна
     this->resize(1920, 1080);
+    //this->showMaximized();
+    QScreen *screen = QGuiApplication::primaryScreen();
+    QRect screenGeometry = screen->geometry();
+
+    // Центрируем окно
+    int x = (screenGeometry.width() - width()) / 2;
+    int y = (screenGeometry.height() - height()) / 2;
+    move(x, y);
 
     // Splitter как центральный виджет
     QSplitter *splitter = new QSplitter(Qt::Horizontal, this);

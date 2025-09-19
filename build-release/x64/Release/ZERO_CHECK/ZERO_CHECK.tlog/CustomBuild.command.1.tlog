@@ -1,0 +1,10 @@
+^C:\USERS\USER\DOCUMENTS\MODBUSTEST\BUILD-RELEASE\CMAKEFILES\CFE37A9E741A923D80AF41681BEC57A9\GENERATE.STAMP.RULE
+setlocal
+"C:\Program Files\CMake\bin\cmake.exe" -SC:/Users/user/Documents/modbusTest -BC:/Users/user/Documents/modbusTest/build-release --check-stamp-list CMakeFiles/generate.stamp.list --vs-solution-file C:/Users/user/Documents/modbusTest/build-release/qt_modbus_example.sln
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal & call :cmErrorLevel %errorlevel% & goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd
